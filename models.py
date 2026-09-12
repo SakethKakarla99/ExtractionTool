@@ -25,4 +25,14 @@ class Provider:
     phone: Optional[str] = None
     fax: Optional[str] = None
     office_contact: Optional[str] = None
-    signature_path: Optional[str] = None
+    signature_present: bool = False
+    signature_name: Optional[str] = None
+    signature_date: Optional[str] = None
+
+@dataclass
+class RequestedProcedure:
+    code: Optional[str] = None
+    description: Optional[str] = None
+    units_duration: Optional[str] = None
+
+

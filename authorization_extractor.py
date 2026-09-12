@@ -1,35 +1,17 @@
-import cv2
-from pypdf import PdfReader
-from models import Member, Provider
-from checkbox_detector import is_checked
+from models import Member, Provider, RequestedProcedure
+from pdf_extractor import PDFExtractor
+from datetime import datetime
+import re
+
 
 
 def extract_authorization_form(pdf_path):
 
-    reader = PdfReader(pdf_path)
+    extractor = PDFExtractor(pdf_path)
 
-    fields = reader.get_fields()
+    # Member Information
 
-    if not fields:
-        raise ValueError("No form fields found in PDF")
-
-    def get_value(field_name):
-        for name, field in fields.items():
-            normalized_name = " ".join(name.split())
-            normalized_search = " ".join(field_name.split())
-        
-            if normalized_name == normalized_search:
-
-                value = field.get("/V")
-
-                if value is None or value == "":
-                    return None
-                return str(value).strip()
-        return None
-
-     # Member Information
-
-    full_name = get_value("Member Name (Last, First)")
+    full_name = extractor.get_field("Member Name (Last, First)")
 
     first_name = None
     last_name = None
@@ -40,12 +22,12 @@ def extract_authorization_form(pdf_path):
         last_name = last_name.strip()
         first_name = first_name.strip()
 
-    sex = get_value("Sex")
+    sex = extractor.get_field("Sex")
 
     if sex:
         sex =  sex.replace("/", "")
 
-    age = get_value("Age")
+    age = extractor.get_field("Age")
 
     if age:
         age = int(age)
@@ -55,27 +37,65 @@ def extract_authorization_form(pdf_path):
         last_name = last_name,
         sex = sex,
         age = age,
-        dob = get_value("DOB"),
-        cin = get_value("Client Index CIN"),
-        icd10_dx = get_value("ICD10 Diagnosis"),
-        mailing_address = get_value("Mailing Address"),
-        phone = get_value("Phone")
+        dob = extractor.get_field("DOB"),
+        cin = extractor.get_field("Client Index CIN"),
+        icd10_dx = extractor.get_field("ICD10 Diagnosis"),
+        mailing_address = extractor.get_field("Mailing Address"),
+        phone = extractor.get_field("Phone")
     )
 
+    signature_present = False
+    signature_name = None
+    signature_date = None
+
+    signature_data = extractor.get_raw_field("Provider Signature")
+
+    if isinstance(signature_data, dict):
+        signature_present = True
+        signature_name = signature_data.get("/Name")
+        signature_date = extractor.parse_pdf_date(
+            signature_data.get("/M")
+        )
     # Provider Information
 
     provider = Provider(
-        aba_provider = get_value("ABA Provider"),
-        npi = get_value("Provider NPI"),
-        tin = get_value("Provider TIN"),
-        medi_cal_id = get_value("Provider MediCal ID"),
-        address = get_value("Provider Address"),
-        phone = get_value("Provider Phone"),
-        fax = get_value("Provider Fax"),
-        office_contact = get_value("Provider Office Contact")
+        aba_provider = extractor.get_field("ABA Provider"),
+        npi = extractor.get_field("Provider NPI"),
+        tin = extractor.get_field("Provider TIN"),
+        medi_cal_id = extractor.get_field("Provider MediCal ID"),
+        address = extractor.get_field("Provider Address"),
+        phone = extractor.get_field("Provider Phone"),
+        fax = extractor.get_field("Provider Fax"),
+        office_contact = extractor.get_field("Provider Office Contact"),
+        signature_present = signature_present,
+        signature_name = signature_name,
+        signature_date = signature_date
     )
 
-    return member, provider
+    procedure_definitions = [
+    ("H0031", "Mental health assessment by non-physician", "Units and Duration for H0031"),
+    ("H0032-HN", "Mental health service plan development by non-physician (Non-BCBA)", "Units and Duration for H0032HN"),
+    ("H0032-HO", "Mental health service plan development by non-physician (BCBA)", "Units and Duration for H0032HO"),
+    ("H2014", "Skills training and development", "Units and Duration for H2014"),
+    ("H2019", "Therapeutic behavioral services", "Units and Duration for H2019"),
+    ("S5108", "Home care training to home care client", "Units and Duration for S5108"),
+    ("S5110", "Home care training, family", "Units and Duration for S5110"),]
+
+    procedures = []
+
+    for code, description, field_name in procedure_definitions:
+        units_duration = extractor.get_field(field_name)
+
+        if units_duration:
+            procedures.append(
+                RequestedProcedure(
+                    code = code,
+                    description = description,
+                    units_duration = units_duration
+                )
+            )
+
+    return member, provider, procedures
 
 
         
