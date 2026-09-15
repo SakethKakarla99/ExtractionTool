@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Optional
 
 @dataclass
@@ -6,7 +6,7 @@ class Member:
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     sex: Optional[str] = None
-    age: Optional[int] = None
+    age: Optional[float] = None
     dob: Optional[str] = None
     cin: Optional[str] = None
     icd10_dx: Optional[str] = None
@@ -35,4 +35,13 @@ class RequestedProcedure:
     description: Optional[str] = None
     units_duration: Optional[str] = None
 
+@dataclass
+class AuthorizationForm:
+    member: Member
+    provider: Provider
+    procedures: list[RequestedProcedure]
+
+    def to_dict(self):
+        return asdict(self)
+    
 

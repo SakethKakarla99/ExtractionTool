@@ -83,6 +83,24 @@ class PDFExtractor:
             second
         )
         return date.strftime("%m/%d/%Y %I:%M %p")
+    
+    def normalize_date(self, date_string):
+        if not date_string:
+            return None
+
+        date_formats = [
+            "%m/%d/%Y",
+            "%m/%d/%y"
+        ]
+
+        for date_format in date_formats:
+            try:
+                date = datetime.strptime(date_string.strip(), date_format)
+                return date.strftime("%m/%d/%Y")
+            except ValueError:
+                continue
+
+        return date_string
 
     
 

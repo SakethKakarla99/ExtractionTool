@@ -1,4 +1,4 @@
-from models import Member, Provider, RequestedProcedure
+from models import Member, Provider, RequestedProcedure, AuthorizationForm
 from pdf_extractor import PDFExtractor
 from datetime import datetime
 import re
@@ -30,7 +30,7 @@ def extract_authorization_form(pdf_path):
     age = extractor.get_field("Age")
 
     if age:
-        age = int(age)
+        age = float(age)
 
     member = Member(
         first_name = first_name,
@@ -95,7 +95,27 @@ def extract_authorization_form(pdf_path):
                 )
             )
 
-    return member, provider, procedures
+    other_description = extractor.get_field("Other BHT procedure")
+    other_code  = extractor.get_field("Other HCPCS Code")
+    other_units_duration = extractor.get_field("Units and Duration for Other")
+
+    if other_description or other_code or other_units_duration:
+        procedures.append(
+            RequestedProcedure(
+                code = other_code,
+                description = other_description,
+                units_duration = other_units_duration
+            )
+        )
+
+
+    authorization_form = AuthorizationForm(
+        member = member,
+        provider = provider,
+        procedures = procedures
+    )
+
+    return authorization_form
 
 
         
