@@ -16,213 +16,117 @@ The project currently supports a Behavioral Health Treatment Authorization Reque
 - Convert PDF signature dates into readable dates
 - Extract requested procedures and HCPCS codes
 - Extract units and duration for requested procedures
-- Return extracted information as structured Python dataclasses
+- Extract custom "Other" procedures
+- Support integer and decimal member ages
+- Convert extracted data into structured Python dataclasses
+- Convert extracted authorization forms into Python dictionaries and JSON
+- Validate extracted authorization form data
+- Automated validation testing with pytest
 
-## Project Architecture
+## Structured Data Models
 
-The project separates general PDF reading from document-specific extraction logic.
-
-```text
-PDF
- |
- v
-PDFExtractor
- |
- |-- Form Fields
- |-- Embedded Text
- |-- Raw PDF Fields
- |-- PDF Date Parsing
- |
- v
-Document-Specific Extractor
- |
- |-- Member
- |-- Provider
- |-- Requested Procedures
- |
- v
-Structured Python Models
-```
-
-### `pdf_extractor.py`
-
-Contains the general-purpose `PDFExtractor` class.
-
-This layer is not specific to the Behavioral Health Authorization form. It provides reusable functionality for working with PDFs, including:
-
-- Opening PDFs with `pypdf`
-- Detecting whether a PDF contains form fields
-- Retrieving individual form fields
-- Retrieving raw PDF field values
-- Normalizing field names
-- Extracting all form fields
-- Extracting embedded text from PDF pages
-- Parsing PDF-formatted dates
-
-### `authorization_extractor.py`
-
-Contains the extraction logic specifically for Behavioral Health Treatment Authorization Request Forms.
-
-It uses `PDFExtractor` to retrieve the underlying PDF data and then maps that information into structured models.
-
-Currently extracts:
-
-- Member information
-- Provider information
-- Provider digital signature information
-- Requested procedures
-- HCPCS codes
-- Units and duration
-
-### `models.py`
-
-Contains Python dataclasses used to represent extracted information.
-
-Current models include:
+Extracted authorization forms are organized into a single `AuthorizationForm` model:
 
 ```text
-Member
-Provider
-RequestedProcedure
+AuthorizationForm
+├── Member
+├── Provider
+└── RequestedProcedure[]
 ```
 
-### `checkbox_detector.py`
+This allows an entire extracted document to be handled as one structured object instead of returning separate values.
 
-Contains OpenCV-based checkbox detection functionality.
-
-This can be used as a visual fallback for documents where checkbox information cannot be retrieved directly from PDF form fields.
-
-### `coordinate_finder.py`
-
-Development utility for locating coordinates within rendered PDF pages or images.
-
-### `test.py`
-
-Used to test the extraction pipeline against sample PDF documents.
-
-## Example Extracted Data
-
-The authorization extractor can return structured objects such as:
+The model can also be converted into a Python dictionary:
 
 ```python
-Member(
-    first_name="Jhon",
-    last_name="Doe",
-    sex="Male",
-    age=6,
-    dob="01/21/2015",
-    cin="12345678A",
-    icd10_dx="F84.0"
-)
+authorization_form.to_dict()
 ```
 
-Provider information can also include digital signature metadata:
+This structured format is intended to support future database and API integrations.
 
-```python
-Provider(
-    aba_provider="Example Provider",
-    npi="1234567890",
-    signature_present=True,
-    signature_name="Example Name",
-    signature_date="02/08/2023 12:40 PM"
-)
+## Validation
+
+The project includes a validation layer in `validator.py`.
+
+Current validation includes:
+
+- Required member first and last name
+- Required member CIN
+- CIN alphanumeric validation
+- Member age range validation
+- Member DOB validation
+- Required ABA provider
+- Provider NPI validation
+- Required requested procedures
+- Required HCPCS codes
+- Required units and duration
+
+Validation occurs after extraction so malformed or incomplete data can be detected before it is passed to another system.
+
+## Automated Testing
+
+Validation rules are tested using `pytest`.
+
+Tests currently cover scenarios including:
+
+- Valid authorization forms
+- Invalid NPI length
+- Non-numeric NPI values
+- Invalid member age
+- Invalid DOB
+- Missing procedure units/duration
+- Missing HCPCS codes
+- Missing member CIN
+- Missing provider NPI
+- Missing requested procedures
+
+Run all automated tests with:
+
+```bash
+py -m pytest
 ```
 
-Requested procedures are returned individually:
+## PDF Compatibility Testing
 
-```python
-RequestedProcedure(
-    code="H0032-HO",
-    description="Mental health service plan development by non-physician (BCBA)",
-    units_duration="78/6 months"
-)
-```
+The extractor is being tested against multiple versions of real BHT authorization forms rather than relying on a single sample document.
 
-Only procedures containing a requested units/duration value are currently added to the procedure list.
+Testing multiple PDFs has already identified differences such as:
 
-## PDF Extraction Strategy
+- Integer and decimal age values
+- Different date formats
+- Different procedure unit formats
+- Different provider information
+- Different digital signatures
+- Alphanumeric CIN values
 
-PDF documents can store information in several different ways.
+This testing is used to identify assumptions in the extraction logic and make the extractor more robust across document variations.
 
-The project is being designed to support multiple extraction strategies:
+## Date Normalization
+
+A general date-normalization utility is being developed to standardize dates before validation or database storage.
+
+The intended normalization includes:
 
 ```text
-PDF
- |
- |-- Fillable Form
- |     -> AcroForm field extraction
- |
- |-- Text-Based PDF
- |     -> Embedded text extraction
- |
- |-- Scanned / Image PDF
-       -> OCR / computer vision fallback
+10/15/16   → 10/15/2016
+8/6/2021   → 08/06/2021
+02/07/2005 → 02/07/2005
 ```
 
-Currently, fillable PDF fields and embedded text extraction are supported.
-
-OCR and broader scanned-document support are planned for future development.
-
-## Technologies
-
-- Python
-- pypdf
-- OpenCV
-- Python dataclasses
-- Regular expressions
-
-## Installation
-
-Clone the repository:
-
-```bash
-git clone https://github.com/SakethKakarla99/ExtractionTool.git
-```
-
-Move into the project directory:
-
-```bash
-cd ExtractionTool
-```
-
-Install the required packages:
-
-```bash
-pip install pypdf opencv-python
-```
-
-## Running the Project
-
-Place a test PDF inside the `documents` directory.
-
-Then run:
-
-```bash
-py test.py
-```
-
-The test script displays:
-
-- Whether form fields were detected
-- Embedded PDF text
-- Extracted member information
-- Extracted provider information
-- Digital signature information
-- Requested procedures
+Automated testing for date normalization is planned.
 
 ## Future Development
 
 Planned improvements include:
 
+- Complete and test date normalization
+- Visual/handwritten signature detection
 - Support for additional PDF document types
 - Automatic document-type detection and routing
-- OCR support for scanned PDFs
+- OCR support for scanned and flattened PDFs
 - Improved visual checkbox detection
-- Extraction of custom/"Other" procedures
-- More robust PDF date and timezone handling
-- Additional structured data models
-- Validation of extracted information
-- Exporting extracted data to formats such as JSON
-- Automated testing across multiple PDF formats
-
-The long-term goal is to create a reusable PDF extraction pipeline where general PDF-reading functionality is shared across multiple document-specific parsers.
+- More robust field validation
+- Additional automated extraction tests
+- Supabase database integration
+- Database-ready data mapping
+- Support for storing extracted authorization records
