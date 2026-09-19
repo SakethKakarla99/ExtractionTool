@@ -43,5 +43,14 @@ class AuthorizationForm:
 
     def to_dict(self):
         return asdict(self)
+
+
+@dataclass
+class AnthemMember:
+    name: Optional[str] = None
+    dob: Optional[str] = None
+    member_id: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
     
 

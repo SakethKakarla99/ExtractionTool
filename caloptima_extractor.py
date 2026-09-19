@@ -37,7 +37,7 @@ def extract_authorization_form(pdf_path):
         last_name = last_name,
         sex = sex,
         age = age,
-        dob = extractor.get_field("DOB"),
+        dob = extractor.normalize_date(extractor.get_field("DOB")),
         cin = extractor.get_field("Client Index CIN"),
         icd10_dx = extractor.get_field("ICD10 Diagnosis"),
         mailing_address = extractor.get_field("Mailing Address"),

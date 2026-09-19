@@ -1,7 +1,8 @@
 import json
-from authorization_extractor import extract_authorization_form
+from caloptima_extractor import extract_authorization_form
 from pdf_extractor import PDFExtractor
 from validator import validate_authorization_form
+from anthem_extractor import inspect_anthem_form, extractor_anthem_member
 
 
 extractor = PDFExtractor("documents/authorization_form_3.pdf")
@@ -34,6 +35,20 @@ print(
         indent = 4
     )
 )
+
+print("\n--- ANTHEM FORM FIELDS ---")
+
+anthem_fields = inspect_anthem_form(
+    "documents/anthem_authorization_form.pdf"
+)
+
+for name, value in anthem_fields.items():
+    print(f"{name}: {value}")
+
+print("\n--- ANTHEM MEMBER ---")
+anthem_member = extractor_anthem_member("documents/anthem_authorization_form.pdf")
+print(anthem_member)
+
 
 print("\n--- VALIDATION ---")
 

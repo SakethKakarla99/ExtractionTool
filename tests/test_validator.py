@@ -1,5 +1,6 @@
-from authorization_extractor import extract_authorization_form
+from caloptima_extractor import extract_authorization_form
 from validator import validate_authorization_form
+from pdf_extractor import PDFExtractor
 
 def test_valid_authorization_form():
     authorization_form = extract_authorization_form(
@@ -110,3 +111,24 @@ def test_no_procedures():
     errors = validate_authorization_form(authorization_form)
 
     assert "No requested procedures were found" in errors
+
+def test_normalize_two_digit_year():
+    extractor = PDFExtractor("documents/authorization_form.pdf")
+
+    result = extractor.normalize_date("10/15/16")
+
+    assert result == "10/15/2016"
+
+def test_normalize_single_digit_month_and_day():
+    extractor = PDFExtractor("documents/authorization_form.pdf")
+
+    result = extractor.normalize_date("8/6/2021")
+
+    assert result == "08/06/2021"
+
+def test_normalize_four_digit_year():
+    extractor = PDFExtractor("documents/authorization_form.pdf")
+
+    result = extractor.normalize_date("02/07/2005")
+
+    assert result == "02/07/2005"
