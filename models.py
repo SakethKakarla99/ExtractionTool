@@ -52,5 +52,26 @@ class AnthemMember:
     member_id: Optional[str] = None
     age: Optional[int] = None
     gender: Optional[str] = None
+    diagnosis: Optional[str] = None
+    diagnosis_date: Optional[str] = None
+    diagnosed_by: Optional[str] = None
+
+@dataclass
+class OrderingPhysician:
+    physician_name: Optional[str] = None
+    provider_tid: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+
+@dataclass
+class AgencyInformation:
+    agency_name: Optional[str] = None
+    tid: Optional[str] = None
+    npi: Optional[str] = None
+    in_network: Optional[str] = None
+    phone: Optional[str] = None
+    fax: Optional[str] = None
+    address: Optional[str] = None
+    contact_person_phone: Optional[str] = None
     
 

@@ -2,7 +2,7 @@ import json
 from caloptima_extractor import extract_authorization_form
 from pdf_extractor import PDFExtractor
 from validator import validate_authorization_form
-from anthem_extractor import inspect_anthem_form, extractor_anthem_member
+from anthem_extractor import inspect_anthem_form, extractor_anthem_member, extracting_ordering_physician, extract_agency_name, extract_agency_tid, extract_agency_npi
 
 
 extractor = PDFExtractor("documents/authorization_form_3.pdf")
@@ -45,10 +45,26 @@ anthem_fields = inspect_anthem_form(
 for name, value in anthem_fields.items():
     print(f"{name}: {value}")
 
-print("\n--- ANTHEM MEMBER ---")
+print("\n--- ANTHEM Demographics ---")
 anthem_member = extractor_anthem_member("documents/anthem_authorization_form.pdf")
 print(anthem_member)
 
+print("\n--- ANTHEM ORDERING PHYSICIAN ---")
+extractor = PDFExtractor(
+    "documents/anthem_authorization_form.pdf"
+)
+ordering_physician = extracting_ordering_physician(extractor)
+print(ordering_physician)
+
+print("\n--- ANTHEM AGENCY INFORMATION ---")
+agency_name = extract_agency_name(extractor)
+print(agency_name)
+
+agency_tid = extract_agency_tid(extractor)
+print(agency_tid)
+
+agency_npi = extract_agency_npi(extractor)
+print(agency_npi)
 
 print("\n--- VALIDATION ---")
 

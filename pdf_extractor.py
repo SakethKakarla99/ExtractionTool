@@ -90,7 +90,9 @@ class PDFExtractor:
 
         date_formats = [
             "%m/%d/%Y",
-            "%m/%d/%y"
+            "%m/%d/%y",
+            "%m-%d-%Y",
+            "%m-%d-%y"
         ]
 
         for date_format in date_formats:
@@ -101,7 +103,57 @@ class PDFExtractor:
                 continue
 
         return date_string
+    def get_widget_info(self):
+        widgets = []
 
+        for page_number, page in enumerate(self.reader.pages):
+            annotations = page.get("/Annots", [])
+
+            for annotation in annotations:
+                annotation_object = annotation.get_object()
+
+                if annotation_object.get("/Subtype") == "/Widget":
+                    widgets.append({
+                        "page": page_number +1,
+                        "field_name": annotation_object.get("/T"),
+                        "field_type": annotation_object.get("/FT"),
+                        "value": annotation_object.get("/V"),
+                        "appearance_state": annotation_object.get("/AS"),
+                        "rect": annotation_object.get("/Rect")
+                    })
+        return widgets
+    def print_text_coordinates(self, page_number=1):
+        page = self.reader.pages[page_number - 1]
+
+        def visitor(text, cm, tm, font_dict, font_size):
+            if text.strip():
+                x = tm[4]
+                y = tm[5]
+
+                print(
+                    f"Text: {text.strip()!r} | "
+                    f"x={x:.2f}, y={y:.2f}"
+                )
+
+        page.extract_text(visitor_text=visitor)
+
+    def extract_text_from_region(self,page_number, x1,y1,x2,y2):
+        page = self.reader.pages[page_number -1]
+
+        extracted_text = []
+
+        def visitor(text,cm,tm,font_dict, font_size):
+            if not text or not text.strip():
+                return
+            x = tm[4]
+            y = tm[5]
+
+            if x1 <= x <= x2 and y1 <= y <=y2:
+                extracted_text.append(text.strip())
+        page.extract_text(visitor_text = visitor)
+        if not extracted_text:
+            return None
+        return " ".join(extracted_text)
     
 
     
