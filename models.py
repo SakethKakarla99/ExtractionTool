@@ -61,7 +61,10 @@ class OrderingPhysician:
     physician_name: Optional[str] = None
     provider_tid: Optional[str] = None
     phone: Optional[str] = None
-    address: Optional[str] = None
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
 
 @dataclass
 class AgencyInformation:
@@ -73,5 +76,35 @@ class AgencyInformation:
     fax: Optional[str] = None
     address: Optional[str] = None
     contact_person_phone: Optional[str] = None
+
+@dataclass
+class BCBAInformation:
+    provider_name: Optional[str] = None
+    tid: Optional[str] = None
+    npi: Optional[str] = None
+    in_network: Optional[str] = None
+    phone: Optional[str] = None
+    fax: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+
+@dataclass
+class AnthemTreatment:
+    description: str = ""
+    units: str = ""
+    cpt_code:str = ""
+    timeframe: str = ""
+
+@dataclass
+class AnthemProviderSignature:
+    provider_name: str = ""
+    license_information: str = ""
+    signature_present: bool = False
+    signature_name: str = ""
+    signature_date: str = ""
+
+
+
+
     
 

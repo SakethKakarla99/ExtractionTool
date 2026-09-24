@@ -155,6 +155,41 @@ class PDFExtractor:
             return None
         return " ".join(extracted_text)
     
+    def find_text_position(self, search_text, page_number=None, after_y = None):
+        pages = self.reader.pages
+
+        if page_number is not None:
+            pages = [self.reader.pages[page_number - 1]]
+
+        for index, page in enumerate(pages):
+            found_positions = []
+
+            def visitor(text, cm, tm, font_dict, font_size):
+                if not text:
+                    return
+
+                if search_text.lower() in text.strip().lower():
+                    x = tm[4]
+                    y = tm[5]
+
+                    if after_y is not None and y >= after_y:
+                        return
+
+                    found_positions.append({
+                        "page": page_number if page_number is not None else index + 1,
+                        "x" : x,
+                        "y" : y
+
+                    })
+
+            page.extract_text(visitor_text=visitor)
+
+            if found_positions:
+                if after_y is not None:
+                    return max(found_positions, key = lambda item: item["y"])
+
+                return found_positions[0]
+        return None
 
     
 

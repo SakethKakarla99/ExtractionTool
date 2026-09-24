@@ -2,7 +2,7 @@ import json
 from caloptima_extractor import extract_authorization_form
 from pdf_extractor import PDFExtractor
 from validator import validate_authorization_form
-from anthem_extractor import inspect_anthem_form, extractor_anthem_member, extracting_ordering_physician, extract_agency_name, extract_agency_tid, extract_agency_npi
+from anthem_extractor import  *
 
 
 extractor = PDFExtractor("documents/authorization_form_3.pdf")
@@ -36,14 +36,14 @@ print(
     )
 )
 
-print("\n--- ANTHEM FORM FIELDS ---")
+#print("\n--- ANTHEM FORM FIELDS ---")
 
-anthem_fields = inspect_anthem_form(
-    "documents/anthem_authorization_form.pdf"
-)
+#anthem_fields = inspect_anthem_form(
+    #"documents/anthem_authorization_form.pdf"
+#)
 
-for name, value in anthem_fields.items():
-    print(f"{name}: {value}")
+#for name, value in anthem_fields.items():
+    #print(f"{name}: {value}")
 
 print("\n--- ANTHEM Demographics ---")
 anthem_member = extractor_anthem_member("documents/anthem_authorization_form.pdf")
@@ -56,15 +56,52 @@ extractor = PDFExtractor(
 ordering_physician = extracting_ordering_physician(extractor)
 print(ordering_physician)
 
+# ANTHEM AGENCY INFORMATION
+
+agency = extract_agency_information(
+    extractor,
+    "anthem_page_1.png"
+)
+
 print("\n--- ANTHEM AGENCY INFORMATION ---")
-agency_name = extract_agency_name(extractor)
-print(agency_name)
+print(agency)
 
-agency_tid = extract_agency_tid(extractor)
-print(agency_tid)
+# BCBA PROVIDER INFORMATION
 
-agency_npi = extract_agency_npi(extractor)
-print(agency_npi)
+print("\n--- BCBA PROVIDER INFORMATION ---")
+bcba = extract_bcba_information(extractor, "anthem_page_1.png")
+print(bcba)
+
+#print("\n--- TEST AGE OF FIRST ABA")
+#extractor.print_text_coordinates(page_number = 2)
+
+print("\n--- AGE FIRST ABA TREATMENT ---")
+print("Age of Frist ABA Treatment: ", extract_age_first_aba_treatment(extractor))
+
+print("\n--- DATE OF CURRENT REQUEST ---")
+print("Start Date of Current Request:", extract_start_date_current_request(extractor))
+
+print("\n--- TREATMENT PAGE WIDGETS ---")
+
+print("\n--- ANTHEM TREATMENTS ---")
+treatments = extract_treatments(extractor)
+for treatment in treatments:
+    print(treatment)
+
+print("\n--- Provider Name ---")
+provider_name, license_information = extract_anthem_provider_info(extractor)
+print("Provider Name:", provider_name)
+print("License Information:", license_information)
+
+position =  extractor.find_text_position("Diagnosis")
+print("\n--- Diagnosis Position ---")
+print(position)
+
+print("\n YUUURRR")
+
+print("\n--- PHYSICIAN ADDRESS TEST ---")
+print(extract_physician_address(extractor))
+
 
 print("\n--- VALIDATION ---")
 

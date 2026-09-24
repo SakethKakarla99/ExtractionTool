@@ -1,9 +1,7 @@
 import cv2
 import numpy as np
 
-
-def is_checked(image, coordinates, threshold = 0.50):
-
+def is_checked(image, coordinates, threshold=0.50):
     x1, y1, x2, y2 = coordinates
 
     roi = image[y1:y2, x1:x2]
