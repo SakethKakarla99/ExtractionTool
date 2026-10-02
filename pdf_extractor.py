@@ -191,6 +191,28 @@ class PDFExtractor:
                 return found_positions[0]
         return None
 
+    def get_text_items_from_region(self,page_number,x1,y1,x2,y2):
+        page = self.reader.pages[page_number - 1]
+        items = []
+
+        def visitor(text, cm, tm, font_dict, font_size):
+            if not text or not text.strip():
+                return
+
+            x = tm[4]
+            y = tm[5]
+
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                items.append({
+                    "text": text.strip(),
+                    "x": x,
+                    "y": y
+                })
+
+        page.extract_text(visitor_text=visitor)
+
+        return items
+
     
 
 

@@ -63,6 +63,8 @@ agency = extract_agency_information(
     "anthem_page_1.png"
 )
 
+
+
 print("\n--- ANTHEM AGENCY INFORMATION ---")
 print(agency)
 
@@ -93,14 +95,18 @@ provider_name, license_information = extract_anthem_provider_info(extractor)
 print("Provider Name:", provider_name)
 print("License Information:", license_information)
 
-position =  extractor.find_text_position("Diagnosis")
-print("\n--- Diagnosis Position ---")
-print(position)
+print("\n--- ANTHEM ORDERING PHYSICIAN ---")
+ordering_physician = extracting_ordering_physician(extractor)
+print(ordering_physician)
 
-print("\n YUUURRR")
+print("\n--- STREET CITY TEST ---")
 
-print("\n--- PHYSICIAN ADDRESS TEST ---")
-print(extract_physician_address(extractor))
+street, city = split_street_city(
+    "13440 Ventura Blvd., Ste. 200 Sherman Oaks"
+)
+
+print("Street:", street)
+print("City:", city)
 
 
 print("\n--- VALIDATION ---")

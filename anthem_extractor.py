@@ -239,7 +239,7 @@ def extract_physician_address(extractor):
 
     address = address.strip()
 
-    # Remove the "Address :" label from the extracted row
+    # Remove the "Address :" label
     address = re.sub(
         r"^Address\s*:\s*",
         "",
@@ -247,7 +247,7 @@ def extract_physician_address(extractor):
         flags=re.IGNORECASE
     )
 
-    # Extract state and ZIP from the end of the address
+    # Extract state and ZIP from the end
     state_zip_match = re.search(
         r"\b([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$",
         address
@@ -259,60 +259,120 @@ def extract_physician_address(extractor):
     state = state_zip_match.group(1)
     zip_code = state_zip_match.group(2)
 
-    # Everything before state/ZIP still contains street + city
+    # Remove state and ZIP
     remaining_address = address[:state_zip_match.start()].strip()
 
-    print("Remaining Address:", remaining_address)
-    print("State:", state)
-    print("ZIP:", zip_code)
+    # Separate street and city
+    street, city = split_street_city(remaining_address)
 
-    return remaining_address, None, state, zip_code
+    return street, city, state, zip_code
 
 def extracting_ordering_physician(extractor):
+    street, city, state, zip_code = extract_physician_address(extractor)
     return OrderingPhysician(
         physician_name= extract_physician_name(extractor),
         provider_tid = extract_provider_tid(extractor),
         phone = extract_physician_phone(extractor),
-        # address = extract_physician_address(extractor)
+        street = street,
+        city = city,
+        state = state,
+        zip_code = zip_code
     )
 
 def extract_agency_name(extractor):
-    return extractor.extract_text_from_region(
-        page_number = 1,
-        x1 = 105,
-        y1 = 345,
-        x2 = 590,
-        y2 = 365
+    section = extractor.find_text_position("AGENCY INFORMATION")
+
+    if not section:
+        return None
+
+    position = extractor.find_text_position(
+        "Agency Name",
+        page_number=section["page"],
+        after_y=section["y"]
     )
+
+    if not position:
+        return None
+
+    agency_name = extractor.extract_text_from_region(
+        page_number=position["page"],
+        x1=position["x"] + 65,
+        y1=position["y"] - 10,
+        x2=position["x"] + 500,
+        y2=position["y"] + 10
+    )
+
+    if not agency_name:
+        return None
+
+    return agency_name.lstrip(": ").strip()
 
 def extract_agency_tid(extractor):
-    text = extractor.extract_text_from_region(
-        page_number = 1,
-        x1 = 55,
-        y1 = 330,
-        x2 = 200,
-        y2 = 340
-    )
-    if not text:
+    section = extractor.find_text_position("AGENCY INFORMATION")
+
+    if not section:
         return None
-    return text.split()[0]
+
+    position = extractor.find_text_position(
+        "TID",
+        page_number=section["page"],
+        after_y=section["y"]
+    )
+
+    if not position:
+        return None
+
+    row_text = extractor.extract_text_from_region(
+        page_number=position["page"],
+        x1=0,
+        y1=position["y"] - 10,
+        x2=600,
+        y2=position["y"] + 10
+    )
+
+    if not row_text:
+        return None
+
+    tid_match = re.search(r"\b\d{9}\b", row_text)
+
+    if not tid_match:
+        return None
+
+    return tid_match.group()
 
 def extract_agency_npi(extractor):
-    text = extractor.extract_text_from_region(
-        page_number = 1,
-        x1 = 50,
-        y1 = 330,
-        x2 = 200,
-        y2 = 340
+    section = extractor.find_text_position("AGENCY INFORMATION")
+
+    if not section:
+        return None
+
+    position = extractor.find_text_position(
+        "NPI",
+        page_number=section["page"],
+        after_y=section["y"]
     )
-    if not text:
-        return None
-    parts = text.split()
 
-    if len(parts) <2:
+    if not position:
         return None
 
-    return parts[1]
+    row_text = extractor.extract_text_from_region(
+        page_number=position["page"],
+        x1=0,
+        y1=position["y"] - 10,
+        x2=600,
+        y2=position["y"] + 10
+    )
+
+    if not row_text:
+        return None
+
+    numbers = re.findall(r"\d+", row_text)
+
+    for number in numbers:
+        if len(number) == 10:
+            return number
+
+    return None
 
 def extract_agency_in_network(image_path):
     image = cv2.imread(image_path)
@@ -344,13 +404,40 @@ def extract_agency_phone(extractor):
     return extractor.get_field("Text6")
 
 def extract_agency_fax(extractor):
-    return extractor.extract_text_from_region(
-        page_number = 1,
-        x1 = 385,
-        y1 = 305,
-        x2 = 590,
-        y2 = 320
+    section = extractor.find_text_position("AGENCY INFORMATION")
+
+    if not section:
+        return None
+
+    position = extractor.find_text_position(
+        "Fax",
+        page_number=section["page"],
+        after_y=section["y"]
     )
+
+    if not position:
+        return None
+
+    row_text = extractor.extract_text_from_region(
+        page_number=position["page"],
+        x1=position["x"],
+        y1=position["y"] - 10,
+        x2=600,
+        y2=position["y"] + 10
+    )
+
+    if not row_text:
+        return None
+
+    fax_match = re.search(
+        r"\d{3}[-.\s]\d{3}[-.\s]\d{4}",
+        row_text
+    )
+
+    if not fax_match:
+        return None
+
+    return fax_match.group()
 
 def extract_agency_address(extractor):
     street = extractor.get_field("Text7")
@@ -377,54 +464,113 @@ def extract_agency_information(extractor, image_path):
         phone = extract_agency_phone(extractor),
         fax = extract_agency_fax(extractor),
         address = extract_agency_address(extractor),
-        contact_person_phone= extract_agency_contact_person_phone(extractor)
+        contact_person_phone = extract_agency_contact_person_phone(extractor)
 
     )
 
 def extract_bcba_provider_name(extractor):
-    return extractor.extract_text_from_region(
-        page_number = 1,
-        x1 = 110,
-        y1 = 220,
-        x2 = 590,
-        y2 = 240
+    section = extractor.find_text_position(
+        "BCBA OR RENDERING PROVIDER INFORMATION"
     )
+
+    if not section:
+        return None
+
+    position = extractor.find_text_position(
+        "Provider Name",
+        page_number=section["page"],
+        after_y=section["y"]
+    )
+
+    if not position:
+        return None
+
+    provider_name = extractor.extract_text_from_region(
+        page_number=position["page"],
+        x1=position["x"] + 75,
+        y1=position["y"] - 10,
+        x2=position["x"] + 500,
+        y2=position["y"] + 10
+    )
+
+    if not provider_name:
+        return None
+
+    return provider_name.lstrip(": ").strip()
 
 def extract_bcba_tid(extractor):
-    text = extractor.extract_text_from_region(
-        page_number = 1,
-        x1 = 50,
-        y1 = 200,
-        x2 = 350,
-        y2 = 215
+    section = extractor.find_text_position(
+        "BCBA OR RENDERING PROVIDER INFORMATION"
     )
-    if not text:
+
+    if not section:
         return None
 
-    parts = text.split()
-    numbers = [part for part in parts if part.isdigit()]
+    position = extractor.find_text_position(
+        "TID",
+        page_number=section["page"],
+        after_y=section["y"]
+    )
 
-    if not numbers:
+    if not position:
         return None
-    return numbers[0]
+
+    row_text = extractor.extract_text_from_region(
+        page_number=position["page"],
+        x1=0,
+        y1=position["y"] - 10,
+        x2=600,
+        y2=position["y"] + 10
+    )
+
+    if not row_text:
+        return None
+
+    numbers = re.findall(r"\d+", row_text)
+
+    for number in numbers:
+        if len(number) == 9:
+            return number
+
+    return None
+
+
 
 def extract_bcba_npi(extractor):
-    text = extractor.extract_text_from_region(
-        page_number = 1,
-        x1 = 50,
-        y1 = 200,
-        x2 = 350,
-        y2 = 215
+    section = extractor.find_text_position(
+        "BCBA OR RENDERING PROVIDER INFORMATION"
     )
-    if not text:
+
+    if not section:
         return None
 
-    parts = text.split()
-    numbers = [part for part in parts if part.isdigit()]
+    position = extractor.find_text_position(
+        "NPI",
+        page_number=section["page"],
+        after_y=section["y"]
+    )
 
-    if len(numbers) < 2:
+    if not position:
         return None
-    return numbers[1]
+
+    row_text = extractor.extract_text_from_region(
+        page_number=position["page"],
+        x1=0,
+        y1=position["y"] - 10,
+        x2=600,
+        y2=position["y"] + 10
+    )
+
+    if not row_text:
+        return None
+
+    numbers = re.findall(r"\d+", row_text)
+
+    for number in numbers:
+        if len(number) == 10:
+            return number
+
+    return None
 
 def extract_bcba_in_network(image_path):
     image = cv2.imread(image_path)
@@ -453,73 +599,155 @@ def extract_bcba_in_network(image_path):
     return None
 
 def extract_bcba_phone(extractor):
-    text = extractor.extract_text_from_region(
-        page_number = 1,
-        x1 = 65,
-        y1 = 180,
-        x2 = 590,
-        y2 = 195
-
+    section = extractor.find_text_position(
+        "BCBA OR RENDERING PROVIDER INFORMATION"
     )
-    if not text:
+
+    if not section:
+        return None
+
+    position = extractor.find_text_position(
+        "Phone",
+        page_number=section["page"],
+        after_y=section["y"]
+    )
+
+    if not position:
+        return None
+
+    row_text = extractor.extract_text_from_region(
+        page_number=position["page"],
+        x1=0,
+        y1=position["y"] - 10,
+        x2=600,
+        y2=position["y"] + 10
+    )
+
+    if not row_text:
         return None
 
     phone_numbers = re.findall(
         r"\d{3}-\d{3}-\d{4}",
-        text
+        row_text
     )
+
     if not phone_numbers:
         return None
+
     return phone_numbers[0]
 
 def extract_bcba_fax(extractor):
-    text = extractor.extract_text_from_region(
-        page_number = 1,
-        x1 = 65,
-        y1 = 180,
-        x2 = 590,
-        y2 = 195
+    section = extractor.find_text_position(
+        "BCBA OR RENDERING PROVIDER INFORMATION"
     )
-    if not text:
+
+    if not section:
+        return None
+
+    position = extractor.find_text_position(
+        "Fax",
+        page_number=section["page"],
+        after_y=section["y"]
+    )
+
+    if not position:
+        return None
+
+    row_text = extractor.extract_text_from_region(
+        page_number=position["page"],
+        x1=0,
+        y1=position["y"] - 10,
+        x2=600,
+        y2=position["y"] + 10
+    )
+
+    if not row_text:
         return None
 
     phone_numbers = re.findall(
         r"\d{3}-\d{3}-\d{4}",
-        text
+        row_text
     )
+
     if len(phone_numbers) < 2:
         return None
+
     return phone_numbers[1]
 
 def extract_bcba_email(extractor):
-    text = extractor.extract_text_from_region(
-        page_number = 1,
-        x1 = 65,
-        y1 = 180,
-        x2 = 590,
-        y2 = 195
+    section = extractor.find_text_position(
+        "BCBA OR RENDERING PROVIDER INFORMATION"
     )
-    if not text:
+
+    if not section:
+        return "N/A"
+
+    position = extractor.find_text_position(
+        "Email",
+        page_number=section["page"],
+        after_y=section["y"]
+    )
+
+    if not position:
+        return "N/A"
+
+    row_text = extractor.extract_text_from_region(
+        page_number=position["page"],
+        x1=0,
+        y1=position["y"] - 10,
+        x2=600,
+        y2=position["y"] + 10
+    )
+
+    if not row_text:
         return "N/A"
 
     email_match = re.search(
-        r"[\w\.-]+@[\w\.-]+\.\w+",
-        text
+        r"[\w.-]+@[\w.-]+\.\w+",
+        row_text
     )
 
     if not email_match:
         return "N/A"
 
     return email_match.group()
-def extract_bcba_address(extractor):
-    return extractor.extract_text_from_region(
-        page_number = 1,
-        x1 = 80,
-        y1 = 155,
-        x2 = 590,
-        y2 = 175
 
+def extract_bcba_address(extractor):
+    section = extractor.find_text_position(
+        "BCBA OR RENDERING PROVIDER INFORMATION"
     )
+
+    if not section:
+        return None
+
+    position = extractor.find_text_position(
+        "Address",
+        page_number=section["page"],
+        after_y=section["y"]
+    )
+
+    if not position:
+        return None
+
+    address = extractor.extract_text_from_region(
+        page_number=position["page"],
+        x1=0,
+        y1=position["y"] - 10,
+        x2=600,
+        y2=position["y"] + 10
+    )
+
+    if not address:
+        return None
+
+    address = re.sub(
+        r"^Address\s*:\s*",
+        "",
+        address,
+        flags=re.IGNORECASE
+    )
+
+    return address.strip()
 
 def extract_bcba_information(extractor, image_path):
     return BCBAInformation(
@@ -551,121 +779,170 @@ def extract_start_date_current_request(extractor):
 
     return extractor.normalize_date(value)
 
-TREATMENT_ROWS = [
-    {
-        "y1": 525,
-        "y2": 545,
-        "units_field": "Text12",
-        "timeframe_field": None
-    },
-    {
-        "y1": 502,
-        "y2": 522,
-        "units_field": "Text13",
-        "timeframe_field": None
-    },
-    {
-        "y1": 479,
-        "y2": 499,
-        "units_field": None,
-        "timeframe_field": None
-    },
-    {
-        "y1": 456,
-        "y2": 476,
-        "units_field": "Text14",
-        "timeframe_field": "Text19"
-    },
-    {
-        "y1": 433,
-        "y2": 453,
-        "units_field": None,
-        "timeframe_field": None
-    },
-    {
-        "y1": 410,
-        "y2": 430,
-        "units_field": "Text15",
-        "timeframe_field": "Text20"
-    },
-    {
-        "y1": 387,
-        "y2": 407,
-        "units_field": "Text16",
-        "timeframe_field": "Text21"
-    },
-    {
-        "y1": 364,
-        "y2": 384,
-        "units_field": None,
-        "timeframe_field": None
-    },
-    {
-        "y1": 341,
-        "y2": 361,
-        "units_field": None,
-        "timeframe_field": None
-    },
-    {
-        "y1": 318,
-        "y2": 338,
-        "units_field": None,
-        "timeframe_field": None
-    }
-]
 
-def extract_treatment_row(
-    extractor,
-    y1,
-    y2,
-    units_field=None,
-    timeframe_field=None
-):
-    description = extractor.extract_text_from_region(
-        page_number=2,
-        x1=30,
-        y1=y1,
-        x2=435,
-        y2=y2
-    )
 
-    cpt_code = extractor.extract_text_from_region(
-        page_number=2,
-        x1=475,
-        y1=y1,
-        x2=510,
-        y2=y2
-    )
-
-    units = extractor.get_field(units_field) if units_field else None
-
-    if timeframe_field:
-        timeframe = extractor.get_field(timeframe_field)
-    else:
-        timeframe = extractor.extract_text_from_region(
-            page_number=2,
-            x1=510,
-            y1=y1,
-            x2=590,
-            y2=y2
-        )
-
-    return AnthemTreatment(
-        description=description or "",
-        units=units or "",
-        cpt_code=cpt_code or "",
-        timeframe=timeframe or ""
-    )
 def extract_treatments(extractor):
     treatments = []
 
-    for row in TREATMENT_ROWS:
-        treatment = extract_treatment_row(
-            extractor,
-            y1=row["y1"],
-            y2=row["y2"],
-            units_field=row["units_field"],
-            timeframe_field=row["timeframe_field"]
+    # Find the table headings dynamically
+    description_heading = extractor.find_text_position(
+        "Adaptive Behavior Treatment",
+        page_number=2
+    )
+
+    units_heading = extractor.find_text_position(
+        "Units",
+        page_number=2
+    )
+
+    cpt_heading = extractor.find_text_position(
+        "CPT",
+        page_number=2
+    )
+
+    timeframe_heading = extractor.find_text_position(
+        "Timeframe",
+        page_number=2
+    )
+
+    # Make sure all required headings were found
+    if not all([
+        description_heading,
+        units_heading,
+        cpt_heading,
+        timeframe_heading
+    ]):
+        return treatments
+
+    # Find treatment descriptions dynamically.
+    # Each description gives us the Y position of its row.
+    treatment_rows = extractor.get_text_items_from_region(
+        page_number=2,
+        x1=description_heading["x"],
+        y1=300,
+        x2=units_heading["x"],
+        y2=description_heading["y"] - 1
+    )
+
+    widgets = extractor.get_widget_info()
+
+    # Find widgets located in the Units column
+    unit_widgets = []
+
+    for widget in widgets:
+        rect = widget["rect"]
+
+        if widget["page"] != 2 or not rect:
+            continue
+
+        x = float(rect[0])
+
+        if 420 < x < 480:
+            unit_widgets.append(widget)
+
+    # Find widgets located in the Timeframe column
+    timeframe_widgets = []
+
+    for widget in widgets:
+        rect = widget["rect"]
+
+        if widget["page"] != 2 or not rect:
+            continue
+
+        x = float(rect[0])
+
+        if 500 < x < 600:
+            timeframe_widgets.append(widget)
+
+    # Dynamic boundary between CPT and Timeframe columns
+    cpt_end_x = (
+        cpt_heading["x"] + timeframe_heading["x"]
+    ) / 2
+
+    # Build each treatment row
+    for row in treatment_rows:
+        description = row["text"]
+        row_y = row["y"]
+
+        # -------------------------
+        # Units
+        # -------------------------
+        units = ""
+
+        for widget in unit_widgets:
+            rect = widget["rect"]
+
+            widget_bottom = float(rect[1])
+            widget_top = float(rect[3])
+
+            if widget_bottom <= row_y <= widget_top:
+                units = (widget["value"] or "").strip()
+                break
+
+        # -------------------------
+        # CPT Code
+        # -------------------------
+        cpt_code = extractor.extract_text_from_region(
+            page_number=2,
+            x1=cpt_heading["x"] - 10,
+            y1=row_y - 5,
+            x2=cpt_end_x,
+            y2=row_y + 5
+        ) or ""
+
+        cpt_code = cpt_code.strip()
+
+        # -------------------------
+        # Timeframe
+        # -------------------------
+        timeframe = ""
+
+        # First check for a PDF widget
+        for widget in timeframe_widgets:
+            rect = widget["rect"]
+
+            widget_bottom = float(rect[1])
+            widget_top = float(rect[3])
+
+            if widget_bottom <= row_y <= widget_top:
+                timeframe = (widget["value"] or "").strip()
+                break
+
+        # If there is no widget value, check embedded text
+        if not timeframe:
+            timeframe_bottom = extractor.extract_text_from_region(
+                page_number=2,
+                x1=timeframe_heading["x"] - 15,
+                y1=row_y - 6,
+                x2=600,
+                y2=row_y + 6
+            ) or ""
+
+            timeframe_top = extractor.extract_text_from_region(
+                page_number=2,
+                x1=timeframe_heading["x"] - 15,
+                y1=row_y + 6,
+                x2=600,
+                y2=row_y + 16
+            ) or ""
+
+            timeframe = " ".join(
+                part.strip()
+                for part in [
+                    timeframe_top,
+                    timeframe_bottom
+                ]
+                if part.strip()
+            )
+
+        # -------------------------
+        # Create treatment object
+        # -------------------------
+        treatment = AnthemTreatment(
+            description=description,
+            units=units,
+            cpt_code=cpt_code,
+            timeframe=timeframe
         )
 
         treatments.append(treatment)
@@ -673,12 +950,20 @@ def extract_treatments(extractor):
     return treatments
 
 def extract_anthem_provider_info(extractor):
+    position = extractor.find_text_position(
+        "Provider Name",
+        page_number=2
+    )
+
+    if not position:
+        return "", ""
+
     text = extractor.extract_text_from_region(
-        page_number=2,
-        x1=110,
-        y1=280,
+        page_number=position["page"],
+        x1=position["x"],
+        y1=position["y"] + 10,
         x2=400,
-        y2=300
+        y2=position["y"] + 30
     )
 
     if not text:
@@ -699,5 +984,58 @@ def extract_anthem_provider_info(extractor):
 
     return provider_name, license_information
 
+def split_street_city(address):
+    if not address:
+        return None, None
+
+    unit_pattern = re.search(
+        r"\b(?:Ste\.?|Suite|Apt\.?|Apartment|Unit|#)\s*[A-Za-z0-9-]+",
+        address,
+        re.IGNORECASE
+    )
+
+    if unit_pattern:
+        street_end = unit_pattern.end()
+
+        street = address[:street_end].strip()
+        city = address[street_end:].strip()
+
+        return street, city
+
+    return address, None
+
+def extract_anthem_provider_date(extractor):
+    date_position = extractor.find_text_position(
+        "Date",
+        page_number=2
+    )
+
+    if not date_position:
+        return None
+
+    widgets = extractor.get_widget_info()
+
+    for widget in widgets:
+        rect = widget["rect"]
+
+        if widget["page"] != 2 or not rect:
+            continue
+
+        widget_x = float(rect[0])
+        widget_bottom = float(rect[1])
+        widget_top = float(rect[3])
+
+        # Find the widget directly above the Date label
+        if (
+            widget_x >= date_position["x"] - 10
+            and widget_bottom > date_position["y"]
+            and widget_top < date_position["y"] + 50
+        ):
+            value = widget["value"]
+
+            if value:
+                return extractor.normalize_date(str(value).strip())
+
+    return None
 
 
