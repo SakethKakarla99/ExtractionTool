@@ -1,13 +1,24 @@
-import fitz
+import pymupdf
+import os
 
-pdf = fitz.open("documents/anthem_authorization_form.pdf")
 
-page = pdf[0]
+def pdf_page_to_image(pdf_path, page_number=1):
+    pdf = pymupdf.open(pdf_path)
 
-pix = page.get_pixmap(matrix = fitz.Matrix(2,2))
+    page = pdf[page_number - 1]
 
-pix.save("anthem_page_1.png")
+    pix = page.get_pixmap(
+        matrix=pymupdf.Matrix(2, 2)
+    )
 
-pdf.close()
+    pdf_name = os.path.splitext(
+        os.path.basename(pdf_path)
+    )[0]
 
-print("Saved anthem_page_1.png")
+    image_path = f"{pdf_name}_page_{page_number}.png"
+
+    pix.save(image_path)
+
+    pdf.close()
+
+    return image_path

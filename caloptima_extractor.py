@@ -1,4 +1,4 @@
-from models import Member, Provider, RequestedProcedure, AuthorizationForm
+from caloptima_models import *
 from pdf_extractor import PDFExtractor
 from datetime import datetime
 import re

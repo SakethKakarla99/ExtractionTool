@@ -1,8 +1,9 @@
-from pdf_extractor import PDFExtractor
-from models import *
+from pdf_extractor import *
+from anthem_models import *
 import cv2 
 from checkbox_detector import is_checked
 import re
+from pdf_to_image import pdf_page_to_image
 
 def inspect_anthem_form(pdf_path):
     extractor = PDFExtractor(pdf_path)
@@ -455,7 +456,20 @@ def extract_agency_address(extractor):
 def extract_agency_contact_person_phone(extractor):
     return extractor.get_field("Text11")
 
-def extract_agency_information(extractor, image_path):
+def get_anthem_page_image(extractor):
+        if hasattr(extractor, "anthem_page_image"):
+            return extractor.anthem_page_image
+
+        image_path = pdf_page_to_image(
+            extractor.pdf_path,
+            page_number = 1
+        )
+        extractor.anthem_page_image = image_path
+
+        return image_path
+
+def extract_agency_information(extractor):
+    image_path = get_anthem_page_image(extractor)
     return AgencyInformation(
         agency_name= extract_agency_name(extractor),
         tid = extract_agency_tid(extractor),
@@ -749,7 +763,9 @@ def extract_bcba_address(extractor):
 
     return address.strip()
 
-def extract_bcba_information(extractor, image_path):
+def extract_bcba_information(extractor):
+    image_path = get_anthem_page_image(extractor)
+
     return BCBAInformation(
         provider_name = extract_bcba_provider_name(extractor),
         tid = extract_bcba_tid(extractor),
@@ -1005,9 +1021,18 @@ def split_street_city(address):
     return address, None
 
 def extract_anthem_provider_date(extractor):
+    signature_position = extractor.find_text_position(
+        "Provider Signature",
+        page_number=2
+    )
+
+    if not signature_position:
+        return None
+
     date_position = extractor.find_text_position(
         "Date",
-        page_number=2
+        page_number=2,
+        after_y=signature_position["y"] + 50
     )
 
     if not date_position:
@@ -1025,7 +1050,7 @@ def extract_anthem_provider_date(extractor):
         widget_bottom = float(rect[1])
         widget_top = float(rect[3])
 
-        # Find the widget directly above the Date label
+        # Match the widget directly above the Date label
         if (
             widget_x >= date_position["x"] - 10
             and widget_bottom > date_position["y"]
@@ -1034,8 +1059,32 @@ def extract_anthem_provider_date(extractor):
             value = widget["value"]
 
             if value:
-                return extractor.normalize_date(str(value).strip())
+                return extractor.normalize_date(
+                    str(value).strip()
+                )
 
     return None
 
+def extract_anthem_form(pdf_path):
+    extractor = PDFExtractor(pdf_path)
 
+    # Extracting provider information
+    provider_name, license_information = extract_anthem_provider_info(
+        extractor
+    )
+
+    # Building the complete Anthem form
+    form = AnthemAuthorizationForm(
+        member=extractor_anthem_member(pdf_path),
+        ordering_physician=extracting_ordering_physician(extractor),
+        agency=extract_agency_information(extractor),
+        bcba=extract_bcba_information(extractor),
+        age_first_aba_treatment=extract_age_first_aba_treatment(extractor),
+        start_date_current_request=extract_start_date_current_request(extractor),
+        treatments=extract_treatments(extractor),
+        provider_name=provider_name,
+        license_information=license_information,
+        provider_date=extract_anthem_provider_date(extractor)
+    )
+
+    return form

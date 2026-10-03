@@ -1,5 +1,6 @@
 from pypdf import PdfReader
 from datetime import datetime
+from pdf_to_image import pdf_page_to_image
 import re
 
 class PDFExtractor:
@@ -212,6 +213,25 @@ class PDFExtractor:
         page.extract_text(visitor_text=visitor)
 
         return items
+    
+    def get_field_by_simple_name(self, simple_name):
+        for field_name, field in self.fields.items():
+            parts = field_name.split(".")
+
+            last_part = parts[-1]
+
+            clean_name = re.sub(r"\[\d+\]$", "", last_part)
+
+            if clean_name == simple_name:
+                value = field.get("/V")
+
+                if value is None or value == "":
+                    return None
+
+                return str(value).strip()
+
+        return None
+    
 
     
 

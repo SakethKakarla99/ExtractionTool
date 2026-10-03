@@ -2,8 +2,9 @@ from pdf_extractor import PDFExtractor
 from anthem_extractor import *
 
 
-pdf_path = "documents/anthem_authorization_form.pdf"
-image_path = "anthem_page_1.png"
+pdf_path = "documents/anthem_authorization_form_2.pdf"
+
+
 
 extractor = PDFExtractor(pdf_path)
 
@@ -18,12 +19,12 @@ ordering_physician = extracting_ordering_physician(extractor)
 print(ordering_physician)
 
 print("\n--- ANTHEM AGENCY INFORMATION ---")
-agency = extract_agency_information(extractor, image_path)
+agency = extract_agency_information(extractor)
 print(agency)
 
 
 print("\n--- ANTHEM BCBA INFORMATION ---")
-bcba = extract_bcba_information(extractor, image_path)
+bcba = extract_bcba_information(extractor)
 print(bcba)
 
 
@@ -43,12 +44,6 @@ for treatment in extract_treatments(extractor):
     print(treatment)
 
 
-print("\n--- TREATMENT ROWS ---")
-
-treatments = extract_treatments(extractor)
-
-for treatment in treatments:
-    print(treatment)
 
 print("\n--- ANTHEM PROVIDER INFORMATION ---")
 
@@ -63,4 +58,8 @@ provider_date = extract_anthem_provider_date(extractor)
 
 print("Provider Date:", provider_date)
 
+print("\n--- COMPLETE ANTHEM FORM ---")
 
+form = extract_anthem_form(pdf_path)
+
+print(form)
